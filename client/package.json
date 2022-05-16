@@ -12,6 +12,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
   "dependencies": {
+    "@hapi/nes": "^12.0.4",
     "vue": "^3.2.33",
     "vue-router": "^4.0.14"
   },
@@ -32,6 +33,5 @@
     "tailwindcss": "^3.0.24",
     "vite": "^2.9.5",
     "vitest": "^0.9.3"
-
   }
 }
