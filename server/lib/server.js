@@ -43,7 +43,7 @@ async function Server() {
     ])
 
     await server.register([
-        require('@hapi/nes'),
+        require('../plugin/ws'),
     ], { once: true })
 
     server.subscription('/message')
