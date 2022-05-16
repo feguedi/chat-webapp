@@ -4,15 +4,17 @@
   "description": "Aplicación web para un chat",
   "private": true,
   "scripts": {
+    "start": "node index.js",
     "dev": "nodemon index.js -e js"
   },
   "author": "Ixe Fernández",
-  "license": "GPL-V3",
+  "license": "GPL-3.0",
   "dependencies": {
     "@hapi/boom": "^10.0.0",
     "@hapi/hapi": "^20.2.2",
     "@hapi/nes": "^12.0.4",
     "dotenv": "^16.0.1",
+    "joi": "^17.6.0",
     "underscore": "^1.13.3"
   },
   "devDependencies": {
