@@ -1,0 +1,21 @@
+{
+  "name": "chat-web-server",
+  "version": "1.0.0",
+  "description": "Aplicación web para un chat",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon index.js -e js"
+  },
+  "author": "Ixe Fernández",
+  "license": "GPL-V3",
+  "dependencies": {
+    "@hapi/boom": "^10.0.0",
+    "@hapi/hapi": "^20.2.2",
+    "@hapi/nes": "^12.0.4",
+    "dotenv": "^16.0.1",
+    "underscore": "^1.13.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.16"
+  }
+}
