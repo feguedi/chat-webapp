@@ -77,18 +77,34 @@ export class NesWebSocket {
     this.setServerURL();
     console.log("WebSockets URL:", this.websocketURL);
     this.nesClient = new Client(this.websocketURL);
+    this.id = this.nesClient.id;
+
+    this.nesClient.onConnect(() => {
+      console.log("Conectado al servidor (WebSockets)");
+    });
+
+    this.nesClient.onDisconnect((willReconnect, log) => {
+      console.log("Se desconectó del servidor");
+      console.log(`El servidor${willReconnect ? "" : " no"} se reconectará`);
+    });
+
+    this.nesClient.onError((err) => console.error("NesError -", err));
   }
 
   /**
    * Agrega propiedades al objeto "subscriptions" de la clase
    */
-  setUserSubscriptions() {
-    this.subscriptions.messages = {
-      path: "/message",
-      handler(message, flags) {
-        console.log("Funcion de handler de logs");
-      },
-    };
+  setUserSubscriptions(subs) {
+    Object.keys(subs).forEach((key) => {
+      const { path } = subs[key];
+      this.subscriptions[key] = {
+        path,
+        handler(update, flags) {
+          console.log("NesClient: Escuchando", path, "respuesta:", update);
+          subs[key]["callback"](update);
+        },
+      };
+    });
   }
 
   /**
@@ -96,9 +112,14 @@ export class NesWebSocket {
    */
   async conectar() {
     // https://hapi.dev/module/nes/api/?v=12.0.4#client-3
-    await this.nesClient.connect();
-    console.log("Conectado al servidor");
-    this.conectado = true;
+    try {
+      await this.nesClient.connect();
+      this.conectado = true;
+      this.id = this.nesClient.id;
+      console.log("ID del WS:", this.id);
+    } catch (error) {
+      console.error("Error al conectar con el servidor:\n", error);
+    }
   }
 
   /**
@@ -106,20 +127,35 @@ export class NesWebSocket {
    */
   iniciarSuscripciones() {
     try {
-      this.setUserSubscriptions();
       // https://hapi.dev/module/nes/api/?v=12.0.4#client-4
       Object.keys(this.subscriptions).forEach(async (key) => {
-        const { path, handler } = this.subscriptions[key];
-        if (String(path).length > 0) {
-          await this.nesClient.subscribe(path, handler);
+        try {
+          const { path, handler } = this.subscriptions[key];
+          if (String(path).length > 0) {
+            console.log("Suscribiendo a", path);
+            await this.nesClient.subscribe(path, handler);
+          }
+        } catch (error) {
+          console.error("No se pudo crear la suscripción");
         }
       });
 
       Object.keys(this.nesClient.subscriptions).forEach((suscripcion) => {
         console.log("Suscripción:", suscripcion);
       });
+
+      // this.nesClient.message("Hola a todos");
     } catch (error) {
       throw new Error("No se pudo suscribir");
+    }
+  }
+
+  async enviarMensaje(mensaje) {
+    try {
+      const res = await this.nesClient.message(mensaje);
+      console.log("Respuesta de envío de mensaje:", res);
+    } catch (error) {
+      console.error("No se pudo enviar mensaje\n", mensaje);
     }
   }
 
@@ -143,30 +179,6 @@ export class NesWebSocket {
   }
 
   /**
-   * Escuchando error
-   * @param {ErrorHandler} callback Callback
-   */
-  onError(callback) {
-    this.nesClient.onError(function (error) {
-      callback(error);
-    });
-  }
-
-  /**
-   * Escuchando cambios en la conexión con el servidor
-   * @param {DisconnectHandler} disconnectHandler Función callback para cuando se desconecte el cliente
-   */
-  onDisconnect(disconnectHandler) {
-    this.nesClient.onDisconnect(disconnectHandler);
-  }
-
-  onConnect() {
-    this.nesClient.onConnect(function () {
-      console.log("Conectado");
-    });
-  }
-
-  /**
    * Manejar los mensajes del servidor
    * @param {UpdateHandler} callback Callback a los mensajes que envía el servidor
    */
@@ -182,7 +194,7 @@ export class NesWebSocket {
   setServerURL() {
     const serverVar = import.meta.env.VITE_SERVERURL;
 
-    // Expresión regular para saber si un string es una IP local
+    // Expresión regular para saber si un string es una dirección IP v4
     // por ejemplo, 192.168.1.33 o 127.0.0.1 (localhost)
     const ipRegex =
       /(25[0-5]|24[0-9]|1[0-9]{2}|[0-9]{2}|[0-9])[.](25[0-5]|24[0-9]|1[0-9]{2}|[0-9]{2}|[0-9])[.](25[0-5]|24[0-9]|1[0-9]{2}|[0-9]{2}|[0-9])[.](25[0-5]|24[0-9]|1[0-9]{2}|[0-9]{2}|[0-9])/i;
@@ -210,7 +222,7 @@ export class NesWebSocket {
    */
   async cerrarSesion() {
     Object.keys(this.nesClient.subscriptions()).forEach((suscripcion) => {});
-    await this.nesClient.close();
+    await this.nesClient.disconnect();
     this.conectado = false;
   }
 }
