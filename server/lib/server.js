@@ -3,7 +3,10 @@ require('dotenv').config()
 const Hapi = require('@hapi/hapi')
 const Joi = require('joi')
 
-const history = []
+const history = [{
+    author: '1653518723134:LAPTOP-KTIH5L9C:19204:l3m6cruf:10000',
+    message: 'Bienvenidos sean todos',
+}]
 
 async function Server() {
     const server = Hapi.server({
@@ -18,15 +21,19 @@ async function Server() {
             options: {
                 id: 'message',
                 validate: {
-                    payload: Joi.object({ message: Joi.string() }),
+                    payload: Joi.object({
+                        message: Joi.string().required(),
+                        author: Joi.string().required(),
+                    }),
                 },
             },
             handler(request, h) {
-                const message = request.payload.message
+                const { message, author } = request.payload
                 console.log(`Message received: ${message}`)
-                history.push(message)
+                console.log(`Message author: ${author}`)
+                history.push({ message, author })
 
-                server.publish("/message", { message }) // publish the message to the clients
+                server.publish("/message", { message, author }) // publish the message to the clients
                 return true
             },
         },
@@ -46,7 +53,11 @@ async function Server() {
         require('../plugin/ws'),
     ], { once: true })
 
-    server.subscription('/message')
+    server.subscription('/message', {
+        filter (path, message, options) {
+            return message.author !== options.socket.id
+        }
+    })
 
     return server
 }
