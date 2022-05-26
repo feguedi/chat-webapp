@@ -6,35 +6,33 @@
       >
         Chat app 🐱‍🐉
       </h1>
-      <p
-        :class="`text-right text-${
-          nesWS && nesWS.conectado ? 'green-500' : 'red-900'
-        }`"
-      >
-        {{ nesWS && nesWS.conectado ? "Conectado" : "Desconectado" }}
+      <p :class="`text-right text-${conectado ? 'green-500' : 'red-900'}`">
+        {{ conectado ? "Conectado" : "Desconectado" }}
       </p>
       <div
         class="grow h-full flex-col divide-y divide-gray-300/50 shadow my-6 p-4"
       >
         <h1 class="font-bold underline">
           Mensajes
-          {{
-            nesWS && nesWS.nesClient && nesWS.nesClient
-              ? nesWS.nesClient.id
-              : ""
-          }}
+          {{ nesWS ? nesWS.id : "" }}
         </h1>
         <div
           class="md:container md:m-auto py-4 mt-4 flex flex-col content-start items-start"
         >
           <template v-for="(mensaje, index) in mensajes" :key="index">
-            <p
-              :class="`py-2 px-4 mb-2 shadow rounded-full text-white ${
-                mensaje.author === id ? estiloYoAutor : estiloOtroAutor
+            <div
+              :class="`w-full flex flex-row justify-${
+                mensaje.author === nesWS.id ? 'end' : 'start'
               }`"
             >
-              {{ mensaje.message }}
-            </p>
+              <p
+                :class="`py-2 px-4 mb-2 shadow rounded-full text-white ${
+                  mensaje.author === nesWS.id ? estiloYoAutor : estiloOtroAutor
+                }`"
+              >
+                {{ mensaje.message }}
+              </p>
+            </div>
           </template>
         </div>
         <form class="flex pt-4" v-on:submit="submitForm">
@@ -57,51 +55,44 @@
 
 <script>
 /* eslint-disable no-unused-vars */
-import { NesWebSocket } from "../utils/websocket";
+import { Client } from "@hapi/nes/lib/client";
+import { useServerURL } from "@/hooks/constants";
 
 export default {
   data: () => ({
     nesWS: undefined,
     conectado: false,
     mensajes: [],
-    estiloOtroAutor: "bg-slate-400 text-left",
-    estiloYoAutor: "bg-indigo-600 text-right",
-    /*
-    suscripciones: {
-      messages: {
-        path: "/message",
-        handler(message, flags) {
-          console.log("Escuchando de /message");
-          console.log(message);
-          this.mensajes.push(message);
-        },
-      },
-    },
-    */
+    estiloOtroAutor: "bg-slate-400 hover:bg-slate-500 text-left justify-start",
+    estiloYoAutor: "bg-indigo-600 hover:bg-indigo-700 text-right justify-end",
   }),
   async beforeUnmount() {
     if (this.nesWS) {
-      await this.nesWS.cerrarSesion();
+      try {
+        await this.nesWS.disconnect();
+        this.conectado = false;
+      } catch (error) {
+        console.error("No se pudo cerrar sesión");
+      }
     }
   },
   async mounted() {
+    const [, websocketURL] = useServerURL();
+
     console.log("Servidor:", import.meta.env.VITE_SERVERURL);
-    this.nesWS = new NesWebSocket();
+    this.nesWS = new Client(websocketURL);
+
     try {
-      await this.nesWS.conectar();
-      this.conectado = this.nesWS.conectado;
-      // this.nesWS.setUserSubscriptions(this.suscripciones);
-      /*
-      await this.nesWS.iniciarSuscripciones();
-      */
-      this.nesWS.nesClient.subscribe("/message", function (message, flags) {
-        console.log("Escuchando de /message");
-        console.log(message);
-        this.mensajes.push(message);
+      await this.nesWS.connect();
+      this.conectado = true;
+
+      this.nesWS.subscribe("/message", (message, flags) => {
+        this.mensajes?.push(message);
       });
+
       await this.obtenerHistorial();
 
-      this.nesWS.onUpdate(function (message) {
+      this.nesWS.onUpdate((message) => {
         console.log("onUpdate: Agregando mensaje:", message);
         this.mensajes.push(message);
       });
@@ -114,7 +105,7 @@ export default {
       try {
         const path = "history";
         const method = "POST";
-        const historial = await this.nesWS.request({ path, method });
+        const historial = await this.request({ path, method });
         this.mensajes = historial.payload;
       } catch (error) {
         console.error("No se pudo obtener el historial de la conversación");
@@ -124,24 +115,51 @@ export default {
       try {
         event.preventDefault();
         const message = event.target.elements[0].value;
+
         if (message && message.length > 3) {
-          const author = this.nesWS.nesClient.id;
+          const author = this.nesWS.id;
           const payload = { message, author };
           console.log("Enviando mensaje", payload);
-          const respuesta = await this.nesWS.request({
+          const respuesta = await this.request({
             path: "message",
             method: "POST",
             payload,
           });
+
           console.log("Respuesta del servidor:", respuesta);
+
           if (respuesta.payload) {
             event.target.elements[0].value = "";
+            this.mensajes.push(payload);
           }
         }
       } catch (error) {
         console.error("No se pudo enviar form");
       }
     },
+    async request({ path, method, payload }) {
+      try {
+        const response = await this.nesWS.request({
+          path,
+          method,
+          payload,
+        });
+        return response;
+      } catch (error) {
+        console.error("Error en request de WS:", error);
+        throw new Error("No se pudo obtener la información");
+      }
+    },
+  },
+  async cerrarSesion() {
+    try {
+      // Object.keys(this.nesWS.subscriptions()).forEach((suscripcion) => {});
+      await this.nesWS.disconnect();
+      this.conectado = false;
+    } catch (error) {
+      console.error("Error con las suscripciones");
+      throw new Error(error);
+    }
   },
 };
 </script>
