@@ -26,7 +26,7 @@
               }`"
             >
               <p
-                :class="`py-2 px-4 mb-2 shadow rounded-full text-white ${
+                :class="`py-2 px-4 mb-2 max-w-[75%] text-justify shadow rounded-3xl text-white ${
                   mensaje.author === nesWS.id ? estiloYoAutor : estiloOtroAutor
                 }`"
               >
@@ -44,7 +44,7 @@
           />
           <input
             type="submit"
-            class="bg-sky-500 rounded-r-lg px-6 py-2 text-white shadow hover:drop-shadow-md cursor-pointer hover:bg-sky-600"
+            class="bg-sky-500 rounded-r-lg px-6 py-2 text-white drop-shadow hover:drop-shadow-md cursor-pointer hover:bg-sky-600"
             value="Enviar"
           />
         </form>
@@ -69,8 +69,12 @@ export default {
   async beforeUnmount() {
     if (this.nesWS) {
       try {
+        this.nesWS.subscriptions().forEach(async (suscripcion) => {
+          await this.nesWS.unsubscribe(suscripcion);
+        });
         await this.nesWS.disconnect();
         this.conectado = false;
+        this.mensajes = [];
       } catch (error) {
         console.error("No se pudo cerrar sesión");
       }
@@ -150,16 +154,16 @@ export default {
         throw new Error("No se pudo obtener la información");
       }
     },
-  },
-  async cerrarSesion() {
-    try {
-      // Object.keys(this.nesWS.subscriptions()).forEach((suscripcion) => {});
-      await this.nesWS.disconnect();
-      this.conectado = false;
-    } catch (error) {
-      console.error("Error con las suscripciones");
-      throw new Error(error);
-    }
+    async cerrarSesion() {
+      try {
+        // Object.keys(this.nesWS.subscriptions()).forEach((suscripcion) => {});
+        await this.nesWS.disconnect();
+        this.conectado = false;
+      } catch (error) {
+        console.error("Error con las suscripciones");
+        throw new Error(error);
+      }
+    },
   },
 };
 </script>
